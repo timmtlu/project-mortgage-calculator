@@ -1,20 +1,4 @@
 """
-Basic function of the mortgage calculator - User provides 3 inputs: loan amount, loan period (years), and interest rate.
-Single output: Monthly repayments
-
-Future features to be added:
-- Monthly amortisation breaking down Months, Interest this payment, Principal this payment, Interest to date, Principal
-to date, Principal remaining
-- Additional input: Extra repayments/month
-- Additional input: Repayment intervals options - fortnightly/monthly
-"""
-
-"""
-Class objects for interest and principal?
-"""
-
-
-"""
 Function to request the loan amount and returns the same value
 """
 def req_loan_amount():
@@ -66,11 +50,14 @@ def calc_repayments(principal,period_y,interest_y):
     return repayment_m
 
 """
-Main
+Main function - only runs when executed directly and not when imported
 """
-loan_amount = req_loan_amount()
-loan_period = req_loan_period()
-interest_rate = req_interest_rate()
-monthly_repayments = calc_repayments(loan_amount,loan_period,interest_rate)
-print(f"Monthly repayment: ${monthly_repayments}")
+def main():
+    loan_amount = req_loan_amount()
+    loan_period = req_loan_period()
+    interest_rate = req_interest_rate()
+    monthly_repayments = calc_repayments(loan_amount,loan_period,interest_rate)
+    print(f"Monthly repayment: ${monthly_repayments}")
 
+if __name__ == "__main__":
+    main()
