@@ -13,10 +13,6 @@ Output:
 Author:     Tim Lu
 Date:       26 March 2026
 Version:    1.1.0
-
-Changes for v1.1.0:
-- Rectified comments, docstrings, and spacing according to PEP standards
-- Created functions to calculate and display amortisation schedule
 """
 
 
