@@ -12,7 +12,7 @@ Output:
 
 Author:     Tim Lu
 Date:       26 March 2026
-Version:    1.1.1
+Version:    1.1.2
 """
 
 
@@ -46,7 +46,7 @@ def req_loan_amount():
         except ValueError:
             print("Error: Loan Amount must be a positive integer!")
         else:
-            print(f"{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,}{RESET}")  # Echo back with formatting
+            print(f"{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
             return amount
 
 
@@ -159,12 +159,12 @@ def display_amortisation(schedule):
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
     """
     # Print the labels and separation line, Labels are left-aligned which is standard for financial tables
-    print(f"\n{'MONTH':<8} {'INTEREST THIS PAYMENT':<24} {'PRINCIPAL THIS PAYMENT':<25} {'INTEREST TO DATE':<19} {'PRINCIPAL TO DATE':<20} {'PRINCIPAL REMAINING':<19}")
-    print("-" * 120)
+    print(f"\n{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'PRINCIPAL REMAINING ($)':<23}")
+    print("-" * 140)
 
     # Numbers are right-aligned which is standard for financial tables
     for row in schedule:
-        print(f"{row['Month']:<5}   ${row['Interest This Payment']:>21}   ${row['Principal This Payment']:>22}   ${row['Interest To Date']:>16}   ${row['Principal To Date']:>17}   ${row['Principal Remaining']:>19}")
+        print(f"{row['Month']:<5,.2f}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Principal Remaining']:>24,.2f}")
 
 
 def main():
@@ -175,7 +175,7 @@ def main():
     annual_rate = req_interest_rate()
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
     amor_schedule = calc_amortisation(loan_amount, monthly_repayments, monthly_period, monthly_interest)
-    print(f"\n{BOLD}{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,}{RESET}")
+    print(f"\n{BOLD}{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
     display_amortisation(amor_schedule)
 
 
