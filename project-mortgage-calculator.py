@@ -12,7 +12,7 @@ Output:
 
 Author:     Tim Lu
 Date:       26 March 2026
-Version:    1.1.0
+Version:    1.1.1
 """
 
 
@@ -145,8 +145,8 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m):
             "Interest This Payment": round(interest_payment,2),
             "Principal This Payment": round(principal_payment,2),
             "Interest To Date": round(total_interest,2),
-            "Principal To Date": round(total_principal,2),
-            "Principal Remaining": round(balance,2)
+            "Principal To Date": min(round(total_principal,2), amount),  # To account for rounding errors for the last month
+            "Principal Remaining": max(round(balance,2), 0.00)  # To account for rounding errors for the last month
         })
 
     return schedule
