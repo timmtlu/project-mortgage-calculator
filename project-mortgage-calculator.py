@@ -11,8 +11,8 @@ Output:
 - Monthly repayment
 
 Author:     Tim Lu
-Date:       26 March 2026
-Version:    1.1.2
+Date:       28 March 2026
+Version:    1.1.3
 """
 
 
@@ -164,7 +164,7 @@ def display_amortisation(schedule):
 
     # Numbers are right-aligned which is standard for financial tables
     for row in schedule:
-        print(f"{row['Month']:<5,.2f}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Principal Remaining']:>24,.2f}")
+        print(f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Principal Remaining']:>24,.2f}")
 
 
 def main():
