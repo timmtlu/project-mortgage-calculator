@@ -1,11 +1,17 @@
 # project-mortgage-calculator
-Calculate the monthly payments of a fixed term mortgage over given Nth terms at a given interest rate. Also figure out how long it will take the user to pay back the loan. 
+Calculate the monthly payments of a fixed term mortgage over given Nth terms at a given interest rate. Also shows the amortisation schedule, and the modified loan term if there is an offset account.
 
-Basic function of the mortgage calculator - User provides 3 inputs: loan amount, loan period (years), and interest rate.
-Single output: Monthly repayments
+User provides 4 inputs: 
+- Loan amount ($)
+- Loan term (years)
+- Interest rate (% p.a.)
+- Offset amount ($)
 
-Future features to be added:
-- Monthly amortisation breaking down Months, Interest this payment, Principal this payment, Interest to date, Principal
-to date, Principal remaining
+Outputs generated:
+- Monthly repayment ($)
+- Amortisation schedule
+- Loan term with offset (years + months)
+
+Features to be added:
 - Additional input: Extra repayments/month
 - Additional input: Repayment intervals options - fortnightly/monthly
