@@ -6,14 +6,21 @@ Inputs:
 - Loan amount ($)
 - Loan term (years)
 - Interest rate (% p.a.)
+- Offset amount ($)
 
 Output:
-- Monthly repayment
+- Monthly repayment ($)
+- Amortisation schedule
+- Loan term with offset (years + months)
 
 Author:     Tim Lu
-Date:       28 March 2026
-Version:    1.1.3
+Date:       02 April 2026
+Version:    1.2.0
 """
+
+
+# ── Import ───────────────────────────────────────
+import math
 
 
 # ── Constants ───────────────────────────────────────
@@ -77,9 +84,25 @@ def req_interest_rate():
         try:
             interest = float(input(f"{CYAN}Interest Rate (% p.a.):{RESET} "))
         except ValueError:
-            print("Error: Interest Rate must be a floating point!")
+            print("Error: Interest Rate must be floating point!")
         else:
             return interest / 100  # Convert from %
+
+
+def req_offset_amount():
+    """Request user to input the amount in the offset account, if any
+
+    Returns:
+         offset (float): Offset amount in dollars
+    """
+    offset = 0  # Initialise variable to start while loop
+    while offset == 0:
+        try:
+            offset = float(input(f"{CYAN}Offset Amount: ${RESET} "))
+        except ValueError:
+            print("Error: Offset Amount must be floating point!")
+        else:
+            return offset
 
 
 def calc_repayments(amount,period_y,interest_y):
@@ -99,9 +122,28 @@ def calc_repayments(amount,period_y,interest_y):
     period_m = period_y * 12
     interest_m = interest_y / 12
 
-    # Formula for monthly replayments
+    # Formula for monthly repayments
     repayment_m = round((amount * interest_m * (1 + interest_m) ** period_m) / ((1 + interest_m) ** period_m - 1),2)
     return repayment_m, period_m, interest_m
+
+
+def calc_offset(amount,repayment_m,interest_m,offset):
+    """Calculate the new loan term when offset is considered, monthly repayments are the same.
+
+    Args:
+        amount (int): Loan amount in dollars
+        repayment_m (float): Monthly repayments in dollars (rounded to 2 decimal points)
+        interest_m (float): Monthly interest rate in decimal (not percentage)
+        offset (float): Offset amount in dollars
+
+    Returns:
+        offset_period_m (int): Loan term in months when taking into account offset
+    """
+
+    # Formula for loan term in months with offset
+    offset_period_m = math.log(repayment_m / (repayment_m - (amount - offset) * interest_m)) / math.log(1 + interest_m)
+    offset_period_m = math.ceil(offset_period_m)  # round up to the closest integer
+    return offset_period_m
 
 
 def calc_amortisation(amount,repayment_m,period_m,interest_m):
@@ -173,9 +215,12 @@ def main():
     loan_amount = req_loan_amount()
     loan_period = req_loan_period()
     annual_rate = req_interest_rate()
+    offset_amount = req_offset_amount()
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
-    amor_schedule = calc_amortisation(loan_amount, monthly_repayments, monthly_period, monthly_interest)
+    offset_period = calc_offset(loan_amount, monthly_repayments, monthly_interest, offset_amount)
+    amor_schedule = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest)
     print(f"\n{BOLD}{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
+    print(f"\n{BOLD}{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_period // 12} years & {offset_period % 12} months{RESET}")
     display_amortisation(amor_schedule)
 
 
