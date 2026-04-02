@@ -15,7 +15,7 @@ Output:
 
 Author:     Tim Lu
 Date:       02 April 2026
-Version:    1.2.0
+Version:    1.2.1
 """
 
 
@@ -102,8 +102,8 @@ def req_offset_amount():
         except ValueError:
             print("Error: Offset Amount must be floating point!")
         else:
+            print(f"{CYAN}Offset Amount entered: ${RESET}{GREEN}{ITALIC}{offset:,.2f}{RESET}")  # Echo back with formatting
             return offset
-
 
 def calc_repayments(amount,period_y,interest_y):
     """Calculate the monthly repayments.
@@ -211,7 +211,7 @@ def display_amortisation(schedule):
 
 def main():
     """Main function - only runs when executed directly and not when imported"""
-    print(f"\n{BOLD}USER INPUT{RESET}")
+    print(f"\n{BOLD}USER INPUTS:{RESET}")
     loan_amount = req_loan_amount()
     loan_period = req_loan_period()
     annual_rate = req_interest_rate()
@@ -219,8 +219,9 @@ def main():
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
     offset_period = calc_offset(loan_amount, monthly_repayments, monthly_interest, offset_amount)
     amor_schedule = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest)
-    print(f"\n{BOLD}{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
-    print(f"\n{BOLD}{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_period // 12} years & {offset_period % 12} months{RESET}")
+    print(f"\n{BOLD}OUTPUTS:{RESET}")
+    print(f"{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
+    print(f"{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_period // 12} years & {offset_period % 12} months{RESET}")
     display_amortisation(amor_schedule)
 
 
