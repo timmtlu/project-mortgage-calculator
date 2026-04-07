@@ -15,7 +15,7 @@ Output:
 
 Author:     Tim Lu
 Date:       07 April 2026
-Version:    1.2.2
+Version:    1.2.3
 """
 
 
@@ -157,7 +157,7 @@ def calc_repayments(amount,period_y,interest_y):
 
     # Formula for monthly repayments
     repayment_m = round((amount * interest_m * (1 + interest_m) ** period_m) / ((1 + interest_m) ** period_m - 1),2)
-    # repayment_m = math.ceil((amount * interest_m * (1 + interest_m) ** period_m) / ((1 + interest_m) ** period_m - 1) * 100) / 100  # Use this for smaller loan amounts to account for rounding errors
+
     return repayment_m, period_m, interest_m
 
 
@@ -174,10 +174,14 @@ def calc_offset(amount,repayment_m,period_m,interest_m,offset):
     Returns:
         offset_period_m (int): Loan term in months when taking into account offset
     """
+    # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
+    if offset > amount:
+        offset = amount
 
     # Formula for loan term in months with offset
     offset_period_m = math.log(repayment_m / (repayment_m - (amount - offset) * interest_m)) / math.log(1 + interest_m)
     offset_period_m = min(math.ceil(offset_period_m),period_m)  # round up to the closest integer or use original loan term, whichever is smaller
+
     return offset_period_m
 
 
@@ -193,29 +197,40 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
 
     Returns:
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
+        period_m (int): Updated loan term (including paying off principal in offset) in months
     """
+    # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
+    if offset > amount:
+        offset = amount
+
     schedule = []  # Initialise list for amortisation schedule
-    balance = amount - offset  # Current balance of principal
+    payable_balance = amount - offset  # Current balance of principal owing interest
+    total_balance = amount  # Current balance of principal including amount in offset
     total_interest = 0  # Total interest paid to date
     total_principal = 0  # Total principal paid to date
+    month = 0  # Loan term monthly index
 
     # Append dictionary into list before payment starts (month 0)
     schedule.append({
-        "Month": 0,
+        "Month": month,
         "Interest This Payment": 0.00,
         "Principal This Payment": 0.00,
         "Interest To Date": 0.00,
         "Principal To Date": 0.00,
-        "Principal Remaining": round(balance, 2)
+        "Interest Payable Loan Balance": round(payable_balance, 2),
+        "Total Loan Balance": round(amount, 2)
     })
 
-    # Calculate for each month - Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining
-    for month in range(1,period_m+1):
-        interest_payment = balance * interest_m
+    month += 1
+
+    # Calculate for each month - Interest this payment, Principal this payment, Interest to date, Principal to date, Interest Payable Loan Balance, Total Loan Balance
+    while repayment_m <= (payable_balance + payable_balance * interest_m):
+        interest_payment = payable_balance * interest_m
         principal_payment = repayment_m - interest_payment
         total_interest += interest_payment
         total_principal += principal_payment
-        balance -= principal_payment
+        payable_balance -= principal_payment
+        total_balance -= principal_payment
 
         # Append dictionary into list for each month
         schedule.append({
@@ -223,11 +238,72 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
             "Interest This Payment": round(interest_payment,2),
             "Principal This Payment": round(principal_payment,2),
             "Interest To Date": round(total_interest,2),
-            "Principal To Date": min(round(total_principal,2), amount),  # To account for rounding errors for the last month
-            "Principal Remaining": max(round(balance,2), 0.00)  # To account for rounding errors for the last month
+            "Principal To Date": round(total_principal,2),
+            "Interest Payable Loan Balance": round(payable_balance,2),
+            "Total Loan Balance": round(total_balance,2)
         })
 
-    return schedule
+        month += 1
+
+    # Calculation for the final month with interest
+    while repayment_m > payable_balance > 0:
+        interest_payment = payable_balance * interest_m
+        principal_payment = repayment_m - interest_payment
+        total_interest += interest_payment
+        total_principal += principal_payment
+        total_balance -= principal_payment  # First (partial) payment on principal in offset
+        payable_balance = 0  # Paid off all principal that charges interest
+
+        schedule.append({
+            "Month": month,
+            "Interest This Payment": round(interest_payment,2),
+            "Principal This Payment": round(principal_payment,2),
+            "Interest To Date": round(total_interest,2),
+            "Principal To Date": round(total_principal,2),
+            "Interest Payable Loan Balance": round(payable_balance,2),  # To account for rounding errors for the last month
+            "Total Loan Balance": round(total_balance,2)
+        })
+
+        month += 1
+
+    # Calculation for the months with no interest
+    while payable_balance == 0 and repayment_m < total_balance:
+        principal_payment = repayment_m
+        total_principal += principal_payment
+        payable_balance = 0  # Paid off all principal that charges interest
+        total_balance -= principal_payment  # Entire monthly payment goes to pay the principal in offset
+
+        schedule.append({
+            "Month": month,
+            "Interest This Payment": 0.00,
+            "Principal This Payment": round(principal_payment,2),
+            "Interest To Date": round(total_interest,2),
+            "Principal To Date": round(total_principal,2),
+            "Interest Payable Loan Balance": 0.00,
+            "Total Loan Balance": round(total_balance,2)
+        })
+
+        month += 1
+
+    # Calculation for final month with no interest
+    if payable_balance == 0 and repayment_m > total_balance:
+        principal_payment = total_balance  # Final payment is the remaining loan balance
+        total_principal += principal_payment
+        total_balance = 0  # Paid off all principal including offset
+
+        schedule.append({
+            "Month": month,
+            "Interest This Payment": 0.00,
+            "Principal This Payment": round(principal_payment, 2),
+            "Interest To Date": round(total_interest, 2),
+            "Principal To Date": round(total_principal, 2),
+            "Interest Payable Loan Balance": 0.00,
+            "Total Loan Balance": round(total_balance, 2)
+        })
+
+        period_m = month  # Update loan term with offset
+
+    return schedule, period_m
 
 
 def display_amortisation(schedule):
@@ -237,12 +313,12 @@ def display_amortisation(schedule):
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
     """
     # Print the labels and separation line, Labels are left-aligned which is standard for financial tables
-    print(f"\n{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'PRINCIPAL REMAINING ($)':<23}")
-    print("-" * 140)
+    print(f"\n{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}")
+    print("-" * 176)
 
     # Numbers are right-aligned which is standard for financial tables
     for row in schedule:
-        print(f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Principal Remaining']:>24,.2f}")
+        print(f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
 
 
 def main():
@@ -254,10 +330,10 @@ def main():
     offset_amount = req_offset_amount()
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
     offset_period = calc_offset(loan_amount, monthly_repayments, monthly_period, monthly_interest, offset_amount)
-    amor_schedule = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest,offset_amount)
+    amor_schedule, offset_term = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest,offset_amount)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
     print(f"{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
-    print(f"{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_period // 12} years & {offset_period % 12} months{RESET}")
+    print(f"{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_term // 12} years & {offset_term % 12} months{RESET}")
     display_amortisation(amor_schedule)
 
 
