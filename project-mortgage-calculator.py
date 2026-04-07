@@ -15,7 +15,7 @@ Output:
 
 Author:     Tim Lu
 Date:       07 April 2026
-Version:    1.2.3
+Version:    1.2.4
 """
 
 
@@ -198,6 +198,7 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
     Returns:
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
         period_m (int): Updated loan term (including paying off principal in offset) in months
+        final_interest (int): Final month paying interest, this row will be highlighted
     """
     # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
     if offset > amount:
@@ -209,6 +210,7 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
     total_interest = 0  # Total interest paid to date
     total_principal = 0  # Total principal paid to date
     month = 0  # Loan term monthly index
+    final_interest = 0  # Flag for final month paying interest
 
     # Append dictionary into list before payment starts (month 0)
     schedule.append({
@@ -253,6 +255,7 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
         total_principal += principal_payment
         total_balance -= principal_payment  # First (partial) payment on principal in offset
         payable_balance = 0  # Paid off all principal that charges interest
+        final_interest = month  # Flag the final month paying interest
 
         schedule.append({
             "Month": month,
@@ -303,22 +306,28 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
 
         period_m = month  # Update loan term with offset
 
-    return schedule, period_m
+    return schedule, period_m, final_interest
 
 
-def display_amortisation(schedule):
+def display_amortisation(schedule,final_interest):
     """Display the amortisation schedule in a table
 
     Args:
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
+        final_interest (int): Final month paying interest, this row will be highlighted
     """
     # Print the labels and separation line, Labels are left-aligned which is standard for financial tables
-    print(f"\n{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}")
+    print(f"\n{BOLD}{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
     print("-" * 176)
 
     # Numbers are right-aligned which is standard for financial tables
     for row in schedule:
-        print(f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
+        # Highlight the month of final interest
+        if row['Month'] == final_interest:
+            print(
+                f"{GREEN}{ITALIC}{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
+        else:
+            print(f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
 
 
 def main():
@@ -330,11 +339,11 @@ def main():
     offset_amount = req_offset_amount()
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
     offset_period = calc_offset(loan_amount, monthly_repayments, monthly_period, monthly_interest, offset_amount)
-    amor_schedule, offset_term = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest,offset_amount)
+    amor_schedule, offset_term, final_month = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest,offset_amount)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
     print(f"{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
     print(f"{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_term // 12} years & {offset_term % 12} months{RESET}")
-    display_amortisation(amor_schedule)
+    display_amortisation(amor_schedule,final_month)
 
 
 # ── Main ───────────────────────────────────────
