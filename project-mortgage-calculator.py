@@ -14,8 +14,8 @@ Output:
 - Loan term with offset (years + months)
 
 Author:     Tim Lu
-Date:       02 April 2026
-Version:    1.2.1
+Date:       07 April 2026
+Version:    1.2.2
 """
 
 
@@ -49,9 +49,17 @@ def req_loan_amount():
 
             # Raise error if not positive
             if amount <= 0:
-                raise ValueError
-        except ValueError:
-            print("Error: Loan Amount must be a positive integer!")
+                amount = 0
+                raise ValueError("Loan Amount cannot be negative!")
+            elif 0 < amount < 30000:
+                amount = 0
+                raise ValueError("Loan amount must be at least $30,000!")
+        except ValueError as e:
+            if "invalid literal" in str(e):
+                amount = 0
+                print("Error: Interest Rate must be an integer!")
+            else:
+                print(f"Error: {e}")
         else:
             print(f"{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
             return amount
@@ -67,8 +75,15 @@ def req_loan_period():
     while period == 0:
         try:
             period = int(input(f"{CYAN}Loan Period (years):{RESET} "))
-        except ValueError:
-            print("Error: Loan Period must be an integer!")
+            if period < 0:
+                period = 0
+                raise ValueError("Loan Period cannot be negative!")
+        except ValueError as e:
+            if "invalid literal" in str(e):
+                period = 0
+                print("Error: Loan Period must be an integer!")
+            else:
+                print(f"Error: {e}")
         else:
             return period
 
@@ -83,8 +98,15 @@ def req_interest_rate():
     while interest == 0:
         try:
             interest = float(input(f"{CYAN}Interest Rate (% p.a.):{RESET} "))
-        except ValueError:
-            print("Error: Interest Rate must be floating point!")
+            if interest < 0:
+                interest = 0
+                raise ValueError("Interest Rate cannot be negative!")
+        except ValueError as e:
+            if "could not convert" in str(e):
+                interest = 0
+                print("Error: Interest Rate must be floating point!")
+            else:
+                print(f"Error: {e}")
         else:
             return interest / 100  # Convert from %
 
@@ -95,12 +117,23 @@ def req_offset_amount():
     Returns:
          offset (float): Offset amount in dollars
     """
-    offset = 0  # Initialise variable to start while loop
-    while offset == 0:
+    raw = "True"  # Initialise variable to start while loop
+    while raw == "True":
         try:
-            offset = float(input(f"{CYAN}Offset Amount: ${RESET} "))
-        except ValueError:
-            print("Error: Offset Amount must be floating point!")
+            raw = input(f"{CYAN}Offset Amount: ${RESET} ")
+            if raw == "":
+                offset = 0.00
+            else:
+                offset = float(raw)
+                if offset < 0:
+                    raw = "True"
+                    raise ValueError("Offset Amount cannot be negative!")
+        except ValueError as e:
+            if "could not convert" in str(e):
+                raw = "True"
+                print("Error: Offset Amount must be a integer/floating number!")
+            else:
+                print(f"Error: {e}")
         else:
             print(f"{CYAN}Offset Amount entered: ${RESET}{GREEN}{ITALIC}{offset:,.2f}{RESET}")  # Echo back with formatting
             return offset
@@ -124,15 +157,17 @@ def calc_repayments(amount,period_y,interest_y):
 
     # Formula for monthly repayments
     repayment_m = round((amount * interest_m * (1 + interest_m) ** period_m) / ((1 + interest_m) ** period_m - 1),2)
+    # repayment_m = math.ceil((amount * interest_m * (1 + interest_m) ** period_m) / ((1 + interest_m) ** period_m - 1) * 100) / 100  # Use this for smaller loan amounts to account for rounding errors
     return repayment_m, period_m, interest_m
 
 
-def calc_offset(amount,repayment_m,interest_m,offset):
+def calc_offset(amount,repayment_m,period_m,interest_m,offset):
     """Calculate the new loan term when offset is considered, monthly repayments are the same.
 
     Args:
         amount (int): Loan amount in dollars
         repayment_m (float): Monthly repayments in dollars (rounded to 2 decimal points)
+        period_m (int): Loan term in months
         interest_m (float): Monthly interest rate in decimal (not percentage)
         offset (float): Offset amount in dollars
 
@@ -142,11 +177,11 @@ def calc_offset(amount,repayment_m,interest_m,offset):
 
     # Formula for loan term in months with offset
     offset_period_m = math.log(repayment_m / (repayment_m - (amount - offset) * interest_m)) / math.log(1 + interest_m)
-    offset_period_m = math.ceil(offset_period_m)  # round up to the closest integer
+    offset_period_m = min(math.ceil(offset_period_m),period_m)  # round up to the closest integer or use original loan term, whichever is smaller
     return offset_period_m
 
 
-def calc_amortisation(amount,repayment_m,period_m,interest_m):
+def calc_amortisation(amount,repayment_m,period_m,interest_m,offset):
     """Calculate the amortisation schedule which is a table showing each payment including the principal and interest.
 
     Args:
@@ -154,12 +189,13 @@ def calc_amortisation(amount,repayment_m,period_m,interest_m):
         repayment_m (float): Monthly repayments in dollars (rounded to 2 decimal points)
         period_m (int): Loan term in months
         interest_m (float): Monthly interest rate in decimal (not percentage)
+        offset (float): Offset amount in dollars
 
     Returns:
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
     """
     schedule = []  # Initialise list for amortisation schedule
-    balance = amount  # Current balance of principal
+    balance = amount - offset  # Current balance of principal
     total_interest = 0  # Total interest paid to date
     total_principal = 0  # Total principal paid to date
 
@@ -217,8 +253,8 @@ def main():
     annual_rate = req_interest_rate()
     offset_amount = req_offset_amount()
     monthly_repayments, monthly_period, monthly_interest = calc_repayments(loan_amount,loan_period,annual_rate)
-    offset_period = calc_offset(loan_amount, monthly_repayments, monthly_interest, offset_amount)
-    amor_schedule = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest)
+    offset_period = calc_offset(loan_amount, monthly_repayments, monthly_period, monthly_interest, offset_amount)
+    amor_schedule = calc_amortisation(loan_amount, monthly_repayments, offset_period, monthly_interest,offset_amount)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
     print(f"{CYAN}Monthly repayment: ${GREEN}{ITALIC}{monthly_repayments:,.2f}{RESET}")
     print(f"{CYAN}Loan term with offset: {GREEN}{ITALIC}{offset_period // 12} years & {offset_period % 12} months{RESET}")
