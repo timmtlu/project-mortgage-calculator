@@ -6,6 +6,7 @@ Inputs:
 - Loan amount ($)
 - Loan term (years)
 - Interest rate (% p.a.)
+- Repayment frequency - Monthly (default), fortnightly, or weekly
 - Offset amount ($)
 
 Output:
@@ -15,7 +16,7 @@ Output:
 
 Author:     Tim Lu
 Date:       09 April 2026
-Version:    1.3.0
+Version:    1.3.1
 """
 
 
@@ -61,7 +62,7 @@ def req_loan_amount():
             else:
                 print(f"Error: {e}")
         else:
-            print(f"{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
+            print(f"\r{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
             return amount
 
 
