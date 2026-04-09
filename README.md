@@ -5,13 +5,14 @@ User provides 4 inputs:
 - Loan amount ($)
 - Loan term (years)
 - Interest rate (% p.a.)
+- Repayment frequency - Monthly (default), fortnightly, or weekly
 - Offset amount ($)
 
 Outputs generated:
-- Monthly repayment ($)
+- Repayment Amount ($)
 - Amortisation schedule
 - Loan term with offset (years + months)
 
 Features to be added:
 - Additional input: Extra repayments/month
-- Additional input: Repayment intervals options - fortnightly/monthly
+
