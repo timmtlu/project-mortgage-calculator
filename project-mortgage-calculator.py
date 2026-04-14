@@ -15,8 +15,8 @@ Output:
 - Loan term with offset (years + months)
 
 Author:     Tim Lu
-Date:       09 April 2026
-Version:    1.3.1
+Date:       14 April 2026
+Version:    1.3.2
 """
 
 
@@ -263,9 +263,9 @@ def calc_loan_term(amount,repayment_n,period_n,interest_n,offset,frequency):
 
     Args:
         amount (int): Loan amount in dollars
-        repayment_n (float): Monthly repayments in dollars (rounded to 2 decimal points)
-        period_n (int): Loan term in months
-        interest_n (float): Monthly interest rate in decimal (not percentage)
+        repayment_n (float): Monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
+        period_n (int): Loan term in months/fortnights/weeks
+        interest_n (float): Monthly/fortnightly/weekly interest rate in decimal (not percentage)
         offset (float): Offset amount in dollars
         frequency (str): Repayment frequency:
             - 'm': Monthly (default)
@@ -291,9 +291,9 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
 
     Args:
         amount (int): Loan amount in dollars
-        repayment_n (float): Monthly repayments in dollars (rounded to 2 decimal points)
-        period_n (int): Loan term in months
-        interest_n (float): Monthly interest rate in decimal (not percentage)
+        repayment_n (float): Monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
+        period_n (int): Loan term in months/fortnights/weeks
+        interest_n (float): Monthly/fortnightly/weekly interest rate in decimal (not percentage)
         offset (float): Offset amount in dollars
         frequency (str): Repayment frequency:
             - 'm': Monthly (default)
