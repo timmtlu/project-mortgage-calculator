@@ -17,7 +17,7 @@ Output:
 
 Author:     Tim Lu
 Date:       16 April 2026
-Version:    1.4.1
+Version:    1.4.2
 """
 
 
@@ -63,6 +63,7 @@ def req_loan_amount():
             else:
                 print(f"Error: {e}")
         else:
+            print("\033[A\033[2K", end="")  # clear previous line
             print(f"\r{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
             return amount
 
@@ -164,6 +165,7 @@ def req_additional_repayments():
             else:
                 print(f"Error: {e}")
         else:
+            print("\033[A\033[2K", end="")  # clear previous line
             print(f"{CYAN}Additional Repayment Amount entered: ${RESET}{GREEN}{ITALIC}{extra:,.2f}{RESET}")  # Echo back with formatting
             return extra
 
@@ -192,6 +194,7 @@ def req_offset_amount():
             else:
                 print(f"Error: {e}")
         else:
+            print("\033[A\033[2K", end="")  # clear previous line
             print(f"{CYAN}Offset Amount entered: ${RESET}{GREEN}{ITALIC}{offset:,.2f}{RESET}")  # Echo back with formatting
             return offset
 
