@@ -8,15 +8,16 @@ Inputs:
 - Interest rate (% p.a.)
 - Repayment frequency - Monthly (default), fortnightly, or weekly
 - Offset amount ($)
+- Additional repayments ($)
 
 Output:
 - Monthly repayment ($)
 - Amortisation schedule
-- Loan term with offset (years + months)
+- New loan term with offset and additional repayments
 
 Author:     Tim Lu
-Date:       14 April 2026
-Version:    1.3.2
+Date:       16 April 2026
+Version:    1.4.0
 """
 
 
@@ -139,6 +140,34 @@ def req_frequency():
             return frequency
 
 
+def req_additional_repayments():
+    """Request user to input the additional monthly/fortnightly/weekly (depending on selected interval) repayment amount, if any. Default is 0.
+
+    Returns:
+         extra (float): Additional repayment amount every repayment cycle in dollars
+    """
+    raw = "True"  # Initialise variable to start while loop
+    while raw == "True":
+        try:
+            raw = input(f"{CYAN}Additional Repayment Amount (goes into offset): ${RESET} ")
+            if raw == "":
+                extra = 0.00  # Pressing enter is equivalent to zero
+            else:
+                extra = float(raw)
+                if extra < 0:
+                    raw = "True"
+                    raise ValueError("Additional Repayment Amount cannot be negative!")
+        except ValueError as e:
+            if "could not convert" in str(e):
+                raw = "True"
+                print("Error: Additional Repayment Amount must be a integer/floating number!")
+            else:
+                print(f"Error: {e}")
+        else:
+            print(f"{CYAN}Additional Repayment Amount entered: ${RESET}{GREEN}{ITALIC}{extra:,.2f}{RESET}")  # Echo back with formatting
+            return extra
+
+
 def req_offset_amount():
     """Request user to input the amount in the offset account, if any
 
@@ -236,7 +265,31 @@ def display_repayment(repayment_n,frequency):
         interval = "Fortnightly"
     elif frequency == 'w':
         interval = "Weekly"
-    print(f"{CYAN}{interval} Repayment: ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
+    print(f"{CYAN}{interval} Repayment (exc. additional repayment): ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
+
+
+def calc_loan_term(amount,repayment_n,period_n,interest_n,offset):
+    """Calculate the new loan term when offset is considered, monthly repayments are the same.
+
+    Args:
+        amount (int): Loan amount in dollars
+        repayment_n (float): Monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
+        period_n (int): Loan term in months/fortnights/weeks
+        interest_n (float): Monthly/fortnightly/weekly interest rate in decimal (not percentage)
+        offset (float): Offset amount in dollars
+
+    Returns:
+        new_period_n (int): Loan term in months when taking into account offset
+    """
+    # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
+    if offset > amount:
+        offset = amount
+
+    # Formula for loan term in months with offset
+    new_period_n = math.log(repayment_n / (repayment_n - (amount - offset) * interest_n)) / math.log(1 + interest_n)
+    new_period_n = min(math.ceil(new_period_n),period_n)  # round up to the closest integer or use original loan term, whichever is smaller
+
+    return new_period_n
 
 
 def display_term(period_n,frequency):
@@ -258,35 +311,7 @@ def display_term(period_n,frequency):
         print(f"{CYAN}Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_n // 52} years & {period_n % 52} weeks ({period_n} weeks){RESET}")
 
 
-def calc_loan_term(amount,repayment_n,period_n,interest_n,offset,frequency):
-    """Calculate the new loan term when offset is considered, monthly repayments are the same.
-
-    Args:
-        amount (int): Loan amount in dollars
-        repayment_n (float): Monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
-        period_n (int): Loan term in months/fortnights/weeks
-        interest_n (float): Monthly/fortnightly/weekly interest rate in decimal (not percentage)
-        offset (float): Offset amount in dollars
-        frequency (str): Repayment frequency:
-            - 'm': Monthly (default)
-            - 'f': Fortnightly
-            - 'w': Weekly
-
-    Returns:
-        offset_period_n (int): Loan term in months when taking into account offset
-    """
-    # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
-    if offset > amount:
-        offset = amount
-
-    # Formula for loan term in months with offset
-    offset_period_n = math.log(repayment_n / (repayment_n - (amount - offset) * interest_n)) / math.log(1 + interest_n)
-    offset_period_n = min(math.ceil(offset_period_n),period_n)  # round up to the closest integer or use original loan term, whichever is smaller
-
-    return offset_period_n
-
-
-def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
+def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency,extra):
     """Calculate the amortisation schedule which is a table showing each payment including the principal and interest.
 
     Args:
@@ -299,6 +324,7 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
             - 'm': Monthly (default)
             - 'f': Fortnightly
             - 'w': Weekly
+        extra (float): Additional repayment amount every repayment cycle in dollars
 
     Returns:
         schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
@@ -331,6 +357,7 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
         label: index,
         "Interest This Payment": 0.00,
         "Principal This Payment": 0.00,
+        "Extra This Payment": 0.00,
         "Interest To Date": 0.00,
         "Principal To Date": 0.00,
         "Interest Payable Loan Balance": round(payable_balance, 2),
@@ -339,20 +366,22 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
 
     index += 1
 
+    # Note that additional repayments will sit in the offset account and therefore contributes only to the principal and not the interest
     # Calculate for each repayment frequency - Interest this payment, Principal this payment, Interest to date, Principal to date, Interest Payable Loan Balance, Total Loan Balance
-    while repayment_n <= (payable_balance + payable_balance * interest_n):
+    while repayment_n + extra <= (payable_balance + payable_balance * interest_n):
         interest_payment = payable_balance * interest_n
         principal_payment = repayment_n - interest_payment
         total_interest += interest_payment
-        total_principal += principal_payment
-        payable_balance -= principal_payment
-        total_balance -= principal_payment
+        total_principal += principal_payment + extra
+        payable_balance -= principal_payment + extra
+        total_balance -= principal_payment + extra
 
         # Append dictionary into list for each repayment frequency
         schedule.append({
             label: index,
             "Interest This Payment": round(interest_payment,2),
             "Principal This Payment": round(principal_payment,2),
+            "Extra This Payment": round(extra,2),
             "Interest To Date": round(total_interest,2),
             "Principal To Date": round(total_principal,2),
             "Interest Payable Loan Balance": round(payable_balance,2),
@@ -362,12 +391,12 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
         index += 1
 
     # Calculation for the final repayment frequency with interest
-    while repayment_n > payable_balance > 0:
+    while repayment_n + extra > payable_balance > 0:
         interest_payment = payable_balance * interest_n
         principal_payment = repayment_n - interest_payment
         total_interest += interest_payment
-        total_principal += principal_payment
-        total_balance -= principal_payment  # First (partial) payment on principal in offset
+        total_principal += principal_payment + extra
+        total_balance -= principal_payment + extra  # First (partial) payment on principal in offset
         payable_balance = 0  # Paid off all principal that charges interest
         final_interest = index  # Flag the final repayment frequency paying interest
 
@@ -375,6 +404,7 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
             label: index,
             "Interest This Payment": round(interest_payment,2),
             "Principal This Payment": round(principal_payment,2),
+            "Extra This Payment": round(extra, 2),
             "Interest To Date": round(total_interest,2),
             "Principal To Date": round(total_principal,2),
             "Interest Payable Loan Balance": round(payable_balance,2),  # To account for rounding errors for the last repayment frequency
@@ -384,16 +414,17 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
         index += 1
 
     # Calculation for the repayment frequencies with no interest
-    while payable_balance == 0 and repayment_n < total_balance:
+    while payable_balance == 0 and repayment_n + extra < total_balance:
         principal_payment = repayment_n
-        total_principal += principal_payment
+        total_principal += principal_payment + extra
         payable_balance = 0  # Paid off all principal that charges interest
-        total_balance -= principal_payment  # Entire repayment goes to pay the principal in offset
+        total_balance -= principal_payment + extra  # Entire repayment goes to pay the principal in offset
 
         schedule.append({
             label: index,
             "Interest This Payment": 0.00,
             "Principal This Payment": round(principal_payment,2),
+            "Extra This Payment": round(extra, 2),
             "Interest To Date": round(total_interest,2),
             "Principal To Date": round(total_principal,2),
             "Interest Payable Loan Balance": 0.00,
@@ -403,20 +434,38 @@ def calc_amortisation(amount,repayment_n,period_n,interest_n,offset,frequency):
         index += 1
 
     # Calculation for final repayment frequency with no interest
-    if payable_balance == 0 and repayment_n > total_balance:
-        principal_payment = total_balance  # Final payment is the remaining loan balance
-        total_principal += principal_payment
-        total_balance = 0  # Paid off all principal including offset
+    if payable_balance == 0 and repayment_n + extra > total_balance:
 
-        schedule.append({
-            label: index,
-            "Interest This Payment": 0.00,
-            "Principal This Payment": round(principal_payment, 2),
-            "Interest To Date": round(total_interest, 2),
-            "Principal To Date": round(total_principal, 2),
-            "Interest Payable Loan Balance": 0.00,
-            "Total Loan Balance": round(total_balance, 2)
-        })
+        if repayment_n + extra > total_balance > repayment_n:
+            principal_payment = repayment_n  # Final payment is the remaining loan balance
+            total_principal += total_balance
+
+            schedule.append({
+                label: index,
+                "Interest This Payment": 0.00,
+                "Principal This Payment": round(principal_payment, 2),
+                "Extra This Payment": round(total_balance - repayment_n, 2),
+                "Interest To Date": round(total_interest, 2),
+                "Principal To Date": round(total_principal, 2),
+                "Interest Payable Loan Balance": 0.00,
+                "Total Loan Balance": 0.00
+            })
+
+        elif total_balance < repayment_n:
+            principal_payment = total_balance  # Final payment is the remaining loan balance
+            total_principal += principal_payment
+            total_balance = 0  # Paid off all principal including offset
+
+            schedule.append({
+                label: index,
+                "Interest This Payment": 0.00,
+                "Principal This Payment": round(principal_payment, 2),
+                "Extra This Payment": 0.00,
+                "Interest To Date": round(total_interest, 2),
+                "Principal To Date": round(total_principal, 2),
+                "Interest Payable Loan Balance": 0.00,
+                "Total Loan Balance": round(total_balance, 2)
+            })
 
         period_n = index  # Update loan term with offset
 
@@ -439,46 +488,46 @@ def display_amortisation(schedule,final_interest,frequency):
     if frequency == 'm':
         # Print the labels and separation line, Labels are left-aligned which is standard for financial tables
         print(
-            f"\n{BOLD}{'MONTH':<8} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
-        print("-" * 176)
+            f"\n{BOLD}{'MONTH':<8} {'INTEREST ($)':<15} {'PRINCIPAL ($)':<16} {'EXTRA REPAYMENT ($)':<22} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'EFFECTIVE BALANCE ($)':<24} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
+        print("-" * 161)
 
         # Numbers are right-aligned which is standard for financial tables
         for row in schedule:
             # Highlight the month of final interest
             if row['Month'] == final_interest:
                 print(
-                    f"{GREEN}{ITALIC}{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
+                    f"{GREEN}{ITALIC}{row['Month']:<5}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
             else:
                 print(
-                    f"{row['Month']:<5}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
+                    f"{row['Month']:<5}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}")
 
     # Fornightly
     elif frequency == 'f':
         print(
-            f"\n{BOLD}{'FORTNIGHT':<12} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
-        print("-" * 180)
+            f"\n{BOLD}{'FORTNIGHT':<12} {'INTEREST ($)':<15} {'PRINCIPAL ($)':<16} {'EXTRA REPAYMENT ($)':<22} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'EFFECTIVE BALANCE ($)':<24} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
+        print("-" * 165)
 
         for row in schedule:
             if row['Fortnight'] == final_interest:
                 print(
-                    f"{GREEN}{ITALIC}{row['Fortnight']:<9}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
+                    f"{GREEN}{ITALIC}{row['Fortnight']:<9}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
             else:
                 print(
-                    f"{row['Fortnight']:<9}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
+                    f"{row['Fortnight']:<9}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}")
 
     # Weekly
     elif frequency == 'w':
         print(
-            f"\n{BOLD}{'WEEK':<7} {'INTEREST THIS PAYMENT ($)':<28} {'PRINCIPAL THIS PAYMENT ($)':<29} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'INTEREST PAYABLE LOAN BALANCE ($)':<36} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
-        print("-" * 175)
+            f"\n{BOLD}{'WEEK':<7} {'INTEREST ($)':<15} {'PRINCIPAL ($)':<16} {'EXTRA REPAYMENT ($)':<22} {'INTEREST TO DATE ($)':<23} {'PRINCIPAL TO DATE ($)':<24} {'EFFECTIVE BALANCE ($)':<24} {'TOTAL LOAN BALANCE ($)':<22}{RESET}")
+        print("-" * 160)
 
         for row in schedule:
             if row['Week'] == final_interest:
                 print(
-                    f"{GREEN}{ITALIC}{row['Week']:<4}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
+                    f"{GREEN}{ITALIC}{row['Week']:<4}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}{RESET}")
             else:
                 print(
-                    f"{row['Week']:<4}   {row['Interest This Payment']:>26,.2f}   {row['Principal This Payment']:>27,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>34,.2f}   {row['Total Loan Balance']:>23,.2f}")
+                    f"{row['Week']:<4}   {row['Interest This Payment']:>13,.2f}   {row['Principal This Payment']:>14,.2f}   {row['Extra This Payment']:>20,.2f}   {row['Interest To Date']:>21,.2f}   {row['Principal To Date']:>22,.2f}   {row['Interest Payable Loan Balance']:>22,.2f}   {row['Total Loan Balance']:>23,.2f}")
 
 
 def main():
@@ -488,13 +537,14 @@ def main():
     loan_period = req_loan_period()
     annual_rate = req_interest_rate()
     repayment_frequency = req_frequency()
+    extra_repayments = req_additional_repayments()
     offset_amount = req_offset_amount()
     frq_repayments, frq_period, frq_interest = calc_repayment(loan_amount,loan_period,annual_rate,repayment_frequency)
-    offset_period = calc_loan_term(loan_amount,frq_repayments,frq_period,frq_interest,offset_amount,repayment_frequency)
-    amor_schedule, offset_term, final_interest = calc_amortisation(loan_amount,frq_repayments,offset_period,frq_interest,offset_amount,repayment_frequency)
+    offset_term = calc_loan_term(loan_amount,frq_repayments,frq_period,frq_interest,offset_amount)
+    amor_schedule, new_term, final_interest = calc_amortisation(loan_amount,frq_repayments,offset_term,frq_interest,offset_amount,repayment_frequency,extra_repayments)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
     display_repayment(frq_repayments,repayment_frequency)
-    display_term(offset_term,repayment_frequency)
+    display_term(new_term,repayment_frequency)
     display_amortisation(amor_schedule,final_interest,repayment_frequency)
 
 
