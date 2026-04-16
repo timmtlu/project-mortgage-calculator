@@ -17,7 +17,7 @@ Output:
 
 Author:     Tim Lu
 Date:       16 April 2026
-Version:    1.4.0
+Version:    1.4.1
 """
 
 
@@ -265,7 +265,7 @@ def display_repayment(repayment_n,frequency):
         interval = "Fortnightly"
     elif frequency == 'w':
         interval = "Weekly"
-    print(f"{CYAN}{interval} Repayment (exc. additional repayment): ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
+    print(f"\n{CYAN}{interval} Repayment (exc. additional repayment): ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
 
 
 def calc_loan_term(amount,repayment_n,period_n,interest_n,offset):
@@ -543,9 +543,9 @@ def main():
     offset_term = calc_loan_term(loan_amount,frq_repayments,frq_period,frq_interest,offset_amount)
     amor_schedule, new_term, final_interest = calc_amortisation(loan_amount,frq_repayments,offset_term,frq_interest,offset_amount,repayment_frequency,extra_repayments)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
+    display_amortisation(amor_schedule,final_interest,repayment_frequency)
     display_repayment(frq_repayments,repayment_frequency)
     display_term(new_term,repayment_frequency)
-    display_amortisation(amor_schedule,final_interest,repayment_frequency)
 
 
 # ── Main ───────────────────────────────────────
