@@ -16,14 +16,15 @@ Outputs:
 - New loan term with offset and additional repayments
 
 Author:     Tim Lu
-Date:       16 April 2026
-Version:    1.4.3
+Date:       20 April 2026
+Version:    1.4.4
 """
 
 
 # ── Import ───────────────────────────────────────
 import math  # Required to round up
 
+from win32con import CLEARTYPE_QUALITY
 
 # ── Constants ───────────────────────────────────────
 # Define font styling constants
@@ -33,6 +34,7 @@ RED        = "\033[31m"
 GREEN      = "\033[32m"
 CYAN       = "\033[36m"
 RESET      = "\033[0m"
+CLEAR      = "\033[A\033[2K"  # Moves the cursor up one line and clears the entire line
 
 
 # ── Functions ───────────────────────────────────────
@@ -63,7 +65,7 @@ def req_loan_amount():
             else:
                 print(f"Error: {e}")
         else:
-            print("\033[A\033[2K", end="")  # clear previous line
+            print(f"{CLEAR}", end="")  # clear previous line
             print(f"\r{CYAN}Loan Amount entered: ${RESET}{GREEN}{ITALIC}{amount:,.2f}{RESET}")  # Echo back with formatting
             return amount
 
@@ -126,7 +128,7 @@ def req_frequency():
     frequency = 0  # Initialise variable to start while loop
     while frequency not in ['M','m','Monthly','monthly','','F', 'f', 'Fortnightly', 'fortnightly','W', 'w', 'Weekly', 'weekly']:
         try:
-            frequency = input(f"{CYAN}Select Repayment Frequency (Monthly - M/Fortnightly - F/Weekly - W):{RESET} ")
+            frequency = input(f"{CYAN}Select Repayment Frequency (Monthly - M / Fortnightly - F / Weekly - W):{RESET} ")
             if frequency in ['M','m','Monthly','monthly','']:
                 frequency = 'm'  # Pressing enter is equivalent to choosing default monthly
             elif frequency in ['F', 'f', 'Fortnightly', 'fortnightly']:
@@ -165,7 +167,7 @@ def req_additional_repayments():
             else:
                 print(f"Error: {e}")
         else:
-            print("\033[A\033[2K", end="")  # clear previous line
+            print(f"{CLEAR}", end="")  # clear previous line
             print(f"{CYAN}Additional Repayment Amount entered: ${RESET}{GREEN}{ITALIC}{extra:,.2f}{RESET}")  # Echo back with formatting
             return extra
 
@@ -194,7 +196,7 @@ def req_offset_amount():
             else:
                 print(f"Error: {e}")
         else:
-            print("\033[A\033[2K", end="")  # clear previous line
+            print(f"{CLEAR}", end="")  # clear previous line
             print(f"{CYAN}Offset Amount entered: ${RESET}{GREEN}{ITALIC}{offset:,.2f}{RESET}")  # Echo back with formatting
             return offset
 
