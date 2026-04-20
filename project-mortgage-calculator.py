@@ -1,6 +1,6 @@
 """
 MORTGAGE CALCULATOR
-Calculates the monthly repayments of a fixed term mortgage over a period at a specific interest rate.
+Calculate the monthly repayments of a fixed term mortgage over a period at a specific interest rate. Also shows the amortisation schedule, and the new loan term if there is an offset account/additional repayments.
 
 Inputs:
 - Loan amount ($)
@@ -10,14 +10,14 @@ Inputs:
 - Offset amount ($)
 - Additional repayments ($)
 
-Output:
+Outputs:
 - Monthly repayment ($)
 - Amortisation schedule
 - New loan term with offset and additional repayments
 
 Author:     Tim Lu
 Date:       16 April 2026
-Version:    1.4.2
+Version:    1.4.3
 """
 
 
