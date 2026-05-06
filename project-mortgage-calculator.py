@@ -100,8 +100,7 @@ def req_principal_interest():
     """Request user to select repayment type - Principal & Interest (default), or Interest only
 
     Returns:
-        io (boolean): "True" if interest only, otherwise "False"
-        io_period (int): Interest only loan term in years
+        io_period (int): Interest only period in years
     """
     io = 0  # Initialise variable to start while loop
     io_period = 0
@@ -149,7 +148,7 @@ def req_interest_rate(io_period):
     """Request user to input the annual interest rate.
 
     Args:
-        io_period (int): Interest only loan term in years
+        io_period (int): Interest only period in years
 
     Returns:
         interest (float): Annual interest rate in decimal (not percentage)
@@ -296,15 +295,14 @@ def calc_repayment(amount, period_y, interest_y, frequency, io_period, io_intere
             - 'm': Monthly (default)
             - 'f': Fortnightly
             - 'w': Weekly
-        io_period (int): Interest only loan term in years
+        io_period (int): Interest only period in years
         io_interest (float): Annual interest only interest rate in decimal (not percentage)
         offset (float): Offset amount in dollars
 
     Returns:
         io_repayment_n (float): Interest Only monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
         io_repayment_offset (float): Interest Only monthly/fortnightly/weekly repayments when taking into account offset amount in dollars (rounded to 2 decimal points)
-        io_period_n (int): Interest Only loan term in months/fortnights/weeks
-        io_interest_n (float): Interest Only monthly/fortnightly/weekly interest rate in decimal (not percentage)
+        io_period_n (int): Interest only period in months/fortnights/weeks
         repayment_n (float): P&I monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
         period_n (int): P&I loan term in months/fortnights/weeks
         interest_n (float): P&I monthly/fortnightly/weekly interest rate in decimal (not percentage)
@@ -316,21 +314,18 @@ def calc_repayment(amount, period_y, interest_y, frequency, io_period, io_intere
     # Calculation for the standard P&I repayment
     period_n = (period_y - io_period) * n  # P&I period is reduced due to IO period
     interest_n = interest_y / n
-    # repayment_n = round((amount * interest_n * (1 + interest_n) ** period_n) / ((1 + interest_n) ** period_n - 1), 4)
     repayment_n = (amount * interest_n * (1 + interest_n) ** period_n) / ((1 + interest_n) ** period_n - 1)
 
     # Calculation for IO repayment if true, otherwise set to None
     if io_period > 0:
         io_period_n = io_period * n
         io_interest_n = io_interest / n
-        # io_repayment_n = round((amount * io_interest_n), 2)
         io_repayment_n = amount * io_interest_n
-        # io_repayment_offset = round(((amount - offset) * io_interest_n), 2)
         io_repayment_offset = (amount - offset) * io_interest_n
     else:
         io_repayment_n, io_repayment_offset, io_period_n, io_interest_n = None, None, None, None
 
-    return io_repayment_n, io_repayment_offset, io_period_n, io_interest_n, repayment_n, period_n, interest_n
+    return io_repayment_n, io_repayment_offset, io_period_n, repayment_n, period_n, interest_n
 
 
 def display_repayment(io_repayment_n, io_repayment_offset, repayment_n, frequency):
@@ -339,7 +334,7 @@ def display_repayment(io_repayment_n, io_repayment_offset, repayment_n, frequenc
     Args:
         io_repayment_n (float): Interest Only monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
         io_repayment_offset (float): Interest Only monthly/fortnightly/weekly repayments when taking into account offset amount in dollars (rounded to 2 decimal points)
-        repayment_n (float): Monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
+        repayment_n (float): P&I monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
         frequency (str): Repayment frequency:
             - 'm': Monthly (default)
             - 'f': Fortnightly
@@ -359,13 +354,13 @@ def display_repayment(io_repayment_n, io_repayment_offset, repayment_n, frequenc
     print(f"{CYAN}{interval} P&I Repayment: ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
 
 
-def display_term(io_period, io_period_n, period_n, frequency):
+def display_term(io_period, io_period_n, period_u, frequency):
     """Display the updated loan term after taking into account the offset amount and additional repayments.
 
     Args:
-        io_period (int): Interest only loan term in years
-        io_period_n (int): Interest Only loan term in months/fortnights/weeks
-        period_n (int): P&I loan term in months/fortnights/weeks when taking into account offset
+        io_period (int): Interest only period in years
+        io_period_n (int): Interest only period in months/fortnights/weeks
+        period_u (int): Updated loan term (including paying off principal in offset and extra repayments) in months/fortnights/weeks
         frequency (str): Repayment frequency:
             - 'm': Monthly (default)
             - 'f': Fortnightly
@@ -381,11 +376,11 @@ def display_term(io_period, io_period_n, period_n, frequency):
             print(f"{CYAN}Interest Only period: {GREEN}{ITALIC}{io_period} years ({io_period_n} weeks){RESET}")
     # Display messages for different repayment frequencies
     if frequency == 'm':
-        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_n // 12} years & {period_n % 12} months ({period_n} months){RESET}")
+        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_u // 12} years & {period_u % 12} months ({period_u} months){RESET}")
     elif frequency == 'f':
-        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_n // 26} years & {period_n % 26} fortnights ({period_n} fortnights){RESET}")
+        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_u // 26} years & {period_u % 26} fortnights ({period_u} fortnights){RESET}")
     elif frequency == 'w':
-        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_n // 52} years & {period_n % 52} weeks ({period_n} weeks){RESET}")
+        print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_u // 52} years & {period_u % 52} weeks ({period_u} weeks){RESET}")
 
 
 def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, interest_n, offset, frequency, extra):
@@ -394,7 +389,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
     Args:
         amount (int): Loan amount in dollars
         io_repayment_offset (float): Interest Only monthly/fortnightly/weekly repayments when taking into account offset amount in dollars (rounded to 2 decimal points)
-        io_period_n (int): Interest Only loan term in months/fortnights/weeks
+        io_period_n (int): Interest only period in months/fortnights/weeks
         repayment_n (float): P&I monthly/fortnightly/weekly repayments in dollars (rounded to 2 decimal points)
         interest_n (float): P&I monthly/fortnightly/weekly interest rate in decimal (not percentage)
         offset (float): Offset amount in dollars
@@ -405,8 +400,8 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
         extra (float): Additional repayment amount every repayment cycle in dollars
 
     Returns:
-        schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
-        period_u (int): Updated loan term (including paying off principal in offset) in months/fortnights/weeks
+        schedule (list[dict]): Amortisation schedule consisting of Month/Fortnight/Week, Interest this payment, Principal this payment, Extra repayment, Interest to date, Principal to date, Effective balance, and Principal remaining
+        period_u (int): Updated loan term (including paying off principal in offset and extra repayments) in months/fortnights/weeks
         final_interest (int): Final month/fortnight/week paying interest, this row will be highlighted
     """
     # Pre-rounding all floating numbers to 2 decimal points for consistency
@@ -721,13 +716,13 @@ def display_amortisation(schedule, final_interest, frequency, io_period_n):
     """Display the amortisation schedule in a table
 
     Args:
-        schedule (list[dict]): Amortisation schedule consisting of Interest this payment, Principal this payment, Interest to date, Principal to date, Principal remaining for each month
-        final_interest (int): Final month paying interest, this row will be highlighted
+        schedule (list[dict]): Amortisation schedule consisting of Month/Fortnight/Week, Interest this payment, Principal this payment, Extra repayment, Interest to date, Principal to date, Effective balance, and Principal remaining
+        final_interest (int): Final month/fortnight/week paying interest, this row will be highlighted
         frequency (str): Repayment frequency:
             - 'm': Monthly (default)
             - 'f': Fortnightly
             - 'w': Weekly
-        io_period_n (int): Interest Only loan term in months/fortnights/weeks
+        io_period_n (int): Interest only period in months/fortnights/weeks
     """
     # Display schedules for different repayment frequencies
     # Monthly
@@ -789,7 +784,7 @@ def main():
     repayment_frequency = req_frequency()
     extra_repayments = req_additional_repayments()
     offset_amount = req_offset_amount()
-    io_repayments, io_offset, io_period, io_interest, pi_repayments, pi_period, pi_interest = calc_repayment(loan_amount, loan_period, annual_rate, repayment_frequency, interest_period, io_rate, offset_amount)
+    io_repayments, io_offset, io_period, pi_repayments, pi_period, pi_interest = calc_repayment(loan_amount, loan_period, annual_rate, repayment_frequency, interest_period, io_rate, offset_amount)
     amor_schedule, new_term, final_interest = calc_amortisation(loan_amount, io_offset, io_period, pi_repayments, pi_interest, offset_amount, repayment_frequency, extra_repayments)
     print(f"\n{BOLD}OUTPUTS:{RESET}")
     display_amortisation(amor_schedule, final_interest, repayment_frequency, io_period)
