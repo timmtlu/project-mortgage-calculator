@@ -18,8 +18,8 @@ Outputs:
 - Updated loan term with offset and additional repayments
 
 Author:     Tim Lu
-Date:       05 May 2026
-Version:    1.5.1
+Date:       06 May 2026
+Version:    1.5.2
 """
 
 
@@ -59,7 +59,7 @@ def req_loan_amount():
         except ValueError as e:
             if "invalid literal" in str(e):
                 amount = 0
-                print("Error: Interest Rate must be an integer!")
+                print("Error: Loan amount must be an integer!")
             else:
                 print(f"Error: {e}")
         else:
@@ -316,14 +316,17 @@ def calc_repayment(amount, period_y, interest_y, frequency, io_period, io_intere
     # Calculation for the standard P&I repayment
     period_n = (period_y - io_period) * n  # P&I period is reduced due to IO period
     interest_n = interest_y / n
-    repayment_n = round((amount * interest_n * (1 + interest_n) ** period_n) / ((1 + interest_n) ** period_n - 1), 2)
+    # repayment_n = round((amount * interest_n * (1 + interest_n) ** period_n) / ((1 + interest_n) ** period_n - 1), 4)
+    repayment_n = (amount * interest_n * (1 + interest_n) ** period_n) / ((1 + interest_n) ** period_n - 1)
 
     # Calculation for IO repayment if true, otherwise set to None
     if io_period > 0:
         io_period_n = io_period * n
         io_interest_n = io_interest / n
-        io_repayment_n = round((amount * io_interest_n), 2)
-        io_repayment_offset = round(((amount - offset) * io_interest_n), 2)
+        # io_repayment_n = round((amount * io_interest_n), 2)
+        io_repayment_n = amount * io_interest_n
+        # io_repayment_offset = round(((amount - offset) * io_interest_n), 2)
+        io_repayment_offset = (amount - offset) * io_interest_n
     else:
         io_repayment_n, io_repayment_offset, io_period_n, io_interest_n = None, None, None, None
 
@@ -407,9 +410,9 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
         final_interest (int): Final month/fortnight/week paying interest, this row will be highlighted
     """
     # Pre-rounding all floating numbers to 2 decimal points for consistency
-    amount = round(amount, 2)
-    offset = round(offset, 2)
-    extra = round(extra, 2)
+    # amount = round(amount, 4)
+    # offset = round(offset, 4)
+    # extra = round(extra, 4)
 
     # Offset amount equal to loan amount reduces interest to zero, therefore any additional offset beyond loan amount is meaningless
     if offset > amount:
@@ -473,7 +476,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
 
         # Repayment + extra is still less than effective balance
         if repayment_n + extra <= payable_balance:
-            interest_payment = round(payable_balance * interest_n, 2)
+            interest_payment = payable_balance * interest_n
             principal_payment = repayment_n - interest_payment
             total_interest += interest_payment
             total_principal += principal_payment + extra
@@ -496,7 +499,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
 
         # Repayment alone is less than effective balance but repayment+extra exceeds effective balance
         else:
-            interest_payment = round(payable_balance * interest_n, 2)
+            interest_payment = payable_balance * interest_n
             principal_payment = repayment_n - interest_payment
             total_interest += interest_payment
             total_principal += principal_payment + extra
@@ -519,56 +522,61 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
             index += 1
 
     # Calculation for the final repayment month/fortnight/week with interest
-    while repayment_n > payable_balance > 0:
+    while repayment_n > round(payable_balance, 2) > 0:
 
         # Offset is zero, then this is the final repayment
         if payable_balance == total_balance:
 
-            # Repayment alone is not enough to cover p+i but repayment+extra is enough
-            if extra > 0 and repayment_n + extra > total_balance + payable_balance * interest_n > repayment_n:
-                interest_payment = round(payable_balance * interest_n, 2)
-                principal_payment = repayment_n - interest_payment
-                total_interest += interest_payment
-                total_principal += total_balance
-                payable_balance = total_balance = 0  # Paid off all principal
+            # Repayment alone is not enough to cover p+i
+            if total_balance + payable_balance * interest_n > repayment_n:
 
-                schedule.append({
-                    label: index,
-                    "Interest This Payment": interest_payment,
-                    "Principal This Payment": principal_payment,
-                    "Extra This Payment": total_balance - repayment_n,
-                    "Interest To Date": total_interest,
-                    "Principal To Date": total_principal,
-                    "Interest Payable Loan Balance": 0.00,
-                    "Total Loan Balance": 0.00
-                })
+                # If extra is 0 then this is not the final repayment
+                if extra == 0:
+                    interest_payment = payable_balance * interest_n
+                    principal_payment = repayment_n - interest_payment
+                    total_interest += interest_payment
+                    total_principal += principal_payment + extra
+                    payable_balance -= principal_payment + extra
+                    total_balance -= principal_payment + extra
 
-            # If extra is 0 then this is not the final repayment, repayment + extra is still less than effective balance
-            elif extra == 0 and total_balance + payable_balance * interest_n > repayment_n:
-                interest_payment = round(payable_balance * interest_n, 2)
-                principal_payment = repayment_n - interest_payment
-                total_interest += interest_payment
-                total_principal += principal_payment + extra
-                payable_balance -= principal_payment + extra
-                total_balance -= principal_payment + extra
+                    # Append dictionary into list for each repayment frequency
+                    schedule.append({
+                        label: index,
+                        "Interest This Payment": interest_payment,
+                        "Principal This Payment": principal_payment,
+                        "Extra This Payment": extra,
+                        "Interest To Date": total_interest,
+                        "Principal To Date": total_principal,
+                        "Interest Payable Loan Balance": payable_balance,
+                        "Total Loan Balance": total_balance
+                    })
 
-                # Append dictionary into list for each repayment frequency
-                schedule.append({
-                    label: index,
-                    "Interest This Payment": interest_payment,
-                    "Principal This Payment": principal_payment,
-                    "Extra This Payment": extra,
-                    "Interest To Date": total_interest,
-                    "Principal To Date": total_principal,
-                    "Interest Payable Loan Balance": payable_balance,
-                    "Total Loan Balance": total_balance
-                })
+                    # If principal remaining > 0 then keep iterating, otherwise this is the final repayment
+                    if round(total_balance, 2) > 0:
+                        index += 1
 
-                index += 1
+                # Repayment alone is not enough to cover p+i but repayment+extra is enough
+                else:
+                    interest_payment = payable_balance * interest_n
+                    principal_payment = repayment_n - interest_payment
+                    total_interest += interest_payment
+                    total_principal += total_balance
+                    payable_balance = total_balance = 0  # Paid off all principal
+
+                    schedule.append({
+                        label: index,
+                        "Interest This Payment": interest_payment,
+                        "Principal This Payment": principal_payment,
+                        "Extra This Payment": total_balance - repayment_n,
+                        "Interest To Date": total_interest,
+                        "Principal To Date": total_principal,
+                        "Interest Payable Loan Balance": 0.00,
+                        "Total Loan Balance": 0.00
+                    })
 
             # Repayment alone is enough to cover p+i
             else:
-                interest_payment = round(payable_balance * interest_n, 2)
+                interest_payment = payable_balance * interest_n
                 principal_payment = total_balance  # Final payment is the remaining loan balance
                 total_interest += interest_payment
                 total_principal += principal_payment
@@ -595,7 +603,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
         else:
             # Repayment is more than effective balance but not enough to cover interest
             if payable_balance + payable_balance * interest_n > repayment_n:
-                interest_payment = round(payable_balance * interest_n, 2)
+                interest_payment = payable_balance * interest_n
                 principal_payment = repayment_n - interest_payment
                 total_interest += interest_payment
                 total_principal += principal_payment + extra
@@ -618,7 +626,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
 
             # Repayment is more than effective balance + interest
             else:
-                interest_payment = round(payable_balance * interest_n, 2)
+                interest_payment = payable_balance * interest_n
                 principal_payment = repayment_n - interest_payment
                 total_interest += interest_payment
                 total_principal += principal_payment + extra
