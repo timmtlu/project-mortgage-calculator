@@ -18,9 +18,13 @@ Outputs:
 - Updated loan term with offset and additional repayments
 
 Author:     Tim Lu
-Date:       06 May 2026
-Version:    1.5.3
+Date:       12 May 2026
+Version:    1.5.4
 """
+
+
+# ── Imports ───────────────────────────────────────
+from typing import Optional
 
 
 # ── Constants ───────────────────────────────────────
@@ -284,7 +288,7 @@ def req_offset_amount():
             return offset
 
 
-def calc_repayment(amount, period_y, interest_y, frequency, io_period, io_interest, offset):
+def calc_repayment(amount, period_y, interest_y, frequency, io_period: int, io_interest: float, offset) -> tuple[Optional[float], Optional[float], Optional[int], float, int, float]:
     """Calculate the monthly/fortnightly/weekly repayments.
 
     Args:
@@ -328,7 +332,7 @@ def calc_repayment(amount, period_y, interest_y, frequency, io_period, io_intere
     return io_repayment_n, io_repayment_offset, io_period_n, repayment_n, period_n, interest_n
 
 
-def display_repayment(io_repayment_n, io_repayment_offset, repayment_n, frequency):
+def display_repayment(io_repayment_n: Optional[float], io_repayment_offset: Optional[float], repayment_n, frequency):
     """Display the monthly/fortnightly/weekly repayments.
 
     Args:
@@ -383,7 +387,7 @@ def display_term(io_period, io_period_n, period_u, frequency):
         print(f"{CYAN}P&I Loan term with offset and additional repayments: {GREEN}{ITALIC}{period_u // 52} years & {period_u % 52} weeks ({period_u} weeks){RESET}")
 
 
-def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, interest_n, offset, frequency, extra):
+def calc_amortisation(amount, io_repayment_offset: Optional[float], io_period_n: Optional[int], repayment_n, interest_n, offset, frequency, extra) -> tuple[list, int, int | str]:
     """Calculate the amortisation schedule which is a table showing each payment including the principal and interest.
 
     Args:
@@ -712,7 +716,7 @@ def calc_amortisation(amount, io_repayment_offset, io_period_n, repayment_n, int
     return schedule, period_u, final_interest
 
 
-def display_amortisation(schedule, final_interest, frequency, io_period_n):
+def display_amortisation(schedule, final_interest, frequency, io_period_n: Optional[int]):
     """Display the amortisation schedule in a table
 
     Args:
