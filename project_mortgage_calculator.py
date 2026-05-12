@@ -19,7 +19,7 @@ Outputs:
 
 Author:     Tim Lu
 Date:       12 May 2026
-Version:    1.5.4
+Version:    1.5.5
 """
 
 
@@ -358,7 +358,7 @@ def display_repayment(io_repayment_n: Optional[float], io_repayment_offset: Opti
     print(f"{CYAN}{interval} P&I Repayment: ${GREEN}{ITALIC}{repayment_n:,.2f}{RESET}")
 
 
-def display_term(io_period, io_period_n, period_u, frequency):
+def display_term(io_period: Optional[int], io_period_n: Optional[int], period_u, frequency):
     """Display the updated loan term after taking into account the offset amount and additional repayments.
 
     Args:
