@@ -1,9 +1,9 @@
 """
-Unit test for project_mortgage_calculator.py
+Unit test for project_mortgage_calculator.py. Written by Claude and modified/corrected accordingly as I have zero experience in unit testing.
 
 Author:     Tim Lu
-Date:       May 2026
-Version:    1.0.0
+Date:       14 May 2026
+Version:    1.0.2
 """
 
 
@@ -106,6 +106,10 @@ class TestCalcAmortisation(unittest.TestCase):
         self.assertEqual(first['Month'], 0)
         self.assertEqual(first['Interest This Payment'], 0.0)
         self.assertEqual(first['Principal This Payment'], 0.0)
+        self.assertEqual(first['Extra This Payment'], 0.0)
+        self.assertEqual(first['Interest To Date'], 0.0)
+        self.assertEqual(first['Principal To Date'], 0.0)
+        self.assertEqual(first['Interest Payable Loan Balance'], 500_000)
         self.assertEqual(first['Total Loan Balance'], 500_000)
 
     def test_schedule_ends_at_zero_balance(self):
@@ -118,7 +122,7 @@ class TestCalcAmortisation(unittest.TestCase):
         self.assertAlmostEqual(schedule[-1]['Total Loan Balance'], 0.0, places=2)
 
     def test_term_is_approximately_360_months(self):
-        """A 30-year loan with no offset/extra should complete in ~360 months"""
+        """A 30-year loan with no offset/extra should complete in ~360 months, delta=2 means "accept anything within ±2 months of 360" — this accounts for the fact that the final repayment might be a fractional amount that slightly shifts the count by 1 or 2 periods."""
         _, period_u, _ = calc_amortisation(
             amount=500_000, io_repayment_offset=None, io_period_n=None,
             repayment_n=self.pi_repayments, interest_n=self.pi_interest,
@@ -209,18 +213,51 @@ class TestDisplayFunctions(unittest.TestCase):
         self.assertIn("IO Repayment", output)
         self.assertIn("2,291.67", output)
 
+    def test_display_term_pi_without_offset(self):
+        """Should print the P&I loan term without taking into account offset"""
+        with patch('sys.stdout', new_callable=StringIO) as mock_out:
+            display_term(
+                io_period=None, io_period_n=None,
+                period_u=360, frequency='m'
+            )
+            output = mock_out.getvalue()
+        self.assertIn("30 years & 0 months", output)
+        self.assertIn("360 months", output)
+
+    def test_display_term_pi_with_offset(self):
+        """Should print the P&I loan term while taking into account offset"""
+        with patch('sys.stdout', new_callable=StringIO) as mock_out:
+            display_term(
+                io_period=None, io_period_n=None,
+                period_u=296, frequency='m'
+            )
+            output = mock_out.getvalue()
+        self.assertIn("24 years & 8 months", output)
+        self.assertIn("296 months", output)
+
+    def test_display_term_io(self):
+        """Should print the P&I loan term without taking into account offset"""
+        with patch('sys.stdout', new_callable=StringIO) as mock_out:
+            display_term(
+                io_period=5, io_period_n=60,
+                period_u=300, frequency='m'
+            )
+            output = mock_out.getvalue()
+        self.assertIn("5 years", output)
+        self.assertIn("60 months", output)
+
 
 class TestDisplayAmortisation(unittest.TestCase):
 
     def setUp(self):
         """Build a small, real schedule to pass into the display function"""
-        _, _, _, self.repayment, _, self.interest_n = calc_repayment(
+        _, _, _, self.pi_repayments, _, self.pi_interest = calc_repayment(
             amount=500_000, period_y=30, interest_y=0.06,
             frequency='m', io_period=0, io_interest=0, offset=0
         )
         self.schedule, self.final_interest, _ = calc_amortisation(
             amount=500_000, io_repayment_offset=None, io_period_n=None,
-            repayment_n=self.repayment, interest_n=self.interest_n,
+            repayment_n=self.pi_repayments, interest_n=self.pi_interest,
             offset=0, frequency='m', extra=0
         )
 
@@ -242,13 +279,13 @@ class TestDisplayAmortisation(unittest.TestCase):
 
     # ✅ Test 3: Fortnightly uses "FORTNIGHT" header, not "MONTH"
     def test_fortnightly_header(self):
-        _, _, _, repayment, _, interest_n = calc_repayment(
+        _, _, _, pi_repayments, _, pi_interest = calc_repayment(
             amount=500_000, period_y=30, interest_y=0.06,
             frequency='f', io_period=0, io_interest=0, offset=0
         )
         schedule, final_interest, _ = calc_amortisation(
             amount=500_000, io_repayment_offset=None, io_period_n=None,
-            repayment_n=repayment, interest_n=interest_n,
+            repayment_n=pi_repayments, interest_n=pi_interest,
             offset=0, frequency='f', extra=0
         )
         with patch('sys.stdout', new_callable=StringIO) as mock_out:
@@ -259,13 +296,13 @@ class TestDisplayAmortisation(unittest.TestCase):
 
     # ✅ Test 4: IO period rows appear (yellow rows exist in output)
     def test_io_period_rows_present(self):
-        _, io_offset, io_period_n, repayment, _, interest_n = calc_repayment(
+        _, io_offset, io_period_n, pi_repayments, _, pi_interest = calc_repayment(
             amount=500_000, period_y=30, interest_y=0.06,
             frequency='m', io_period=5, io_interest=0.055, offset=0
         )
         schedule, final_interest, _ = calc_amortisation(
             amount=500_000, io_repayment_offset=io_offset, io_period_n=io_period_n,
-            repayment_n=repayment, interest_n=interest_n,
+            repayment_n=pi_repayments, interest_n=pi_interest,
             offset=0, frequency='m', extra=0
         )
         with patch('sys.stdout', new_callable=StringIO) as mock_out:
@@ -276,13 +313,13 @@ class TestDisplayAmortisation(unittest.TestCase):
 
     # ✅ Test 5: Final interest row is highlighted (green)
     def test_final_interest_row_highlighted(self):
-        _, _, _, repayment, _, interest_n = calc_repayment(
+        _, _, _, pi_repayments, _, pi_interest = calc_repayment(
             amount=500_000, period_y=30, interest_y=0.06,
             frequency='m', io_period=0, io_interest=0, offset=0
         )
         schedule, final_interest, _ = calc_amortisation(
             amount=500_000, io_repayment_offset=None, io_period_n=None,
-            repayment_n=repayment, interest_n=interest_n,
+            repayment_n=pi_repayments, interest_n=pi_interest,
             offset=50_000, frequency='m', extra=0  # Offset triggers final_interest flag
         )
         with patch('sys.stdout', new_callable=StringIO) as mock_out:
@@ -492,4 +529,4 @@ class TestReqOffsetAmount(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main(verbose=2)
+    unittest.main(verbosity=2)
